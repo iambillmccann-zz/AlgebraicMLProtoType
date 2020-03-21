@@ -1,3 +1,5 @@
+
+
 class Node(object):   
     def __init__(self, name=""):
         self.children = set()
@@ -7,11 +9,11 @@ class Node(object):
     def addChild(self, node):
         self.children.add(node) 
     def removeChild(self, node):
-        self.children.remove(node)  
+        self.children.discard(node)  
     def addParent(self, node):
         self.parents.add(node)    
     def removeParent(self, node):
-        self.parents.remove(node)   
+        self.parents.discard(node)   
     def addDual(self, node):
         self.dual.add(node)
     def __str__(self):
@@ -37,9 +39,9 @@ def deleteNode(node, layers, layer, dlayer):
         child.removeParent(node)
         child.dual.removeChild(node)
     
-    layers[layer].remove(node)
+    layers[layer].discard(node)
     if dlayer:
-        layers[dlayer].remove(node.dual)
+        layers[dlayer].discard(node.dual)
 
     for child in node.children:
         for parent in node.parents:
@@ -126,6 +128,7 @@ def enforceNegativeTraceConstraints(graph):
 # Algorithm 2 
 
 def enforcePositiveTraceContraints(graph):
+    phiCount = 1
     for pos in graph["pterms"]:
         while not traceConstraint(graph["$"], pos, graph):
             zeta = getTrace(pos, graph).difference(getTrace(graph["$"], graph)).pop()
@@ -137,31 +140,35 @@ def enforcePositiveTraceContraints(graph):
                 linkNodes(zeta, graph["$"])
             else:
                 c = Gamma.pop()
-                phi = Node(name="phi")
-                dphi = Node(name="[phi]")
+                phi = Node(name="phi"+str(phiCount))
+                dphi = Node(name="[phi"+str(phiCount)+"]")
+                phiCount += 1
                 linkDuals(phi, dphi)
                 fullLink(phi, c)
                 graph["atoms"].add(phi)
                 graph["atoms*"].add(dphi)
+                
     
     return
     
 # Algorithm 3
 
 def sparseCrossing(a, b, graph):
+    psiCount = 1
     A = getConstrainedLower(a, graph["atoms"]).difference(getLower(b))
+    U = set()
     for phi in A:
         U = set()
         temp = getLower(b)
         B = temp.intersection(graph["atoms"])
         Delta = graph["dualAtoms"].difference(getLower(phi.dual))
         flag = True
-        while not Delta or flag:
+        while Delta or flag:
             epsilon = B.pop()
             DeltaP = Delta.intersection(getLower(epsilon.dual))
             if not Delta or any([x not in DeltaP for x in Delta]) or any([x not in Delta for x in DeltaP]):
-                psi = Node(name="psi")
-                dpsi = Node(name="[psi]")
+                psi = Node(name="psi" + str(psiCount))
+                dpsi = Node(name="[psi"+ str(psiCount)+"]")
                 linkDuals(psi, dpsi)
                 fullLink(psi, phi)
                 fullLink(psi, epsilon)
@@ -169,25 +176,56 @@ def sparseCrossing(a, b, graph):
                 graph["atoms*"].add(dpsi)
                 Delta = DeltaP
                 U.add(epsilon)
+                psiCount += 1
             
             flag = False
-    
+    ecount = 1
     for epsilon in U:
-        epsilonp = Node("espilon'")
-        depsilonp = Node("[espilon']")
+        epsilonp = Node("espilon'"+str(ecount))
+        depsilonp = Node("[espilon'"+str(ecount)+"]")
         linkDuals(epsilonp, depsilonp)
         fullLink(epsilonp, epsilon)
         graph["atoms"].add(epsilonp)
         graph["atoms*"].add(depsilonp)
+        ecount += 1
 
     for node in A.union(U):
         graph = deleteNode(node, graph, "atoms", "atoms*")
+    
+    return graph
 
 def cross(graph):
     for pos in graph["pterms"]:
         sparseCrossing(graph["$"], pos, graph)
     
     return
+
+# Algorithm 4
+
+def reduceAtoms(graph):
+    Q = set()
+    Lambda = graph["constants"]
+    while Lambda:
+        c = Lambda.pop()
+        Sc = Q.intersection(getLower(c))
+        Wc = graph["dualAtoms"]
+        if Sc:
+            for phi in Sc:
+                Wc = Wc.intersection(getConstrainedLower(phi, graph["dualAtoms"]))
+        
+        Phic = set([x.dual for x in getConstrainedLower(c, graph["atoms"])])
+        T = getTrace(c, graph)
+        while (not T.issubset(Wc) or not Wc.issubset(T)) and Wc:
+            eta = Wc.difference(T).pop()
+            temp = getUpper(eta).union(set([graph["Base"].dual]))
+            t2 = Phic.difference(temp)
+            phi = t2.pop().dual
+            #Phic.remove(phi.dual)
+            Q.add(phi)
+            Wc = Wc.intersection(getConstrainedLower(phi.dual, graph["dualAtoms"]))
+    
+    for atom in graph["atoms"].difference(Q.union([graph["Base"]])):
+        deleteNode(atom, graph, "atoms", "atoms*")
 
 def readData(file):
     with open(file, 'r') as data:
@@ -199,11 +237,24 @@ def readData(file):
     
     return labels, records
 
+def classify(dataList, labels, graph):
+    consts = {}
+    for const in graph["constants"]:
+        consts[const.name] = const.children
+    
+    atoms = set()
+    for i in range(1, len(dataList)):
+        attr = labels[i] + "_" + dataList[i]
+        if attr in consts:
+            atoms = atoms.union(consts[attr])
+    
+    return graph["$"].children.issubset(atoms)
+
 def createGraph(labels, records):
     consts = {}
     layers = {"pterms":set(), "nterms":set(), "constants":set(), 
     "atoms":set(), "terms*":set(), "constants*":set(), 
-    "atoms*":set(), "dualAtoms":set(), "$":None}
+    "atoms*":set(), "dualAtoms":set(), "$":None, "Base":None}
 
     consts["$"] = Node(name="$")
     cdual = Node(name="[$]")
@@ -246,6 +297,7 @@ def createGraph(labels, records):
     layers["atoms"].add(zero)
     layers["atoms*"].add(zdual)
     layers["$"] = consts["$"]
+    layers["Base"] = zero
     return layers
 
 labels, records = readData("people.data")
@@ -253,5 +305,12 @@ layers = createGraph(labels, records)
 enforceNegativeTraceConstraints(layers)
 enforcePositiveTraceContraints(layers)
 cross(layers)
-print("Hello")          
+#reduceAtoms(layers)
+
+with open("test.data", 'r') as file:
+    for line in file:
+        data = list(map(lambda x: x.strip(), line.split(",")))
+        print(data[0], ":", classify(data, labels, layers))
+
+#print(classify(["Steve","blue","brown"], labels, layers))          
     
