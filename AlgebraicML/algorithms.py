@@ -1,5 +1,7 @@
 from AlgebraicML.nodes import Node
-from AlgebraicML import graph
+from AlgebraicML.graph import Graph
+
+import sys
 
 # Algorithm 1
 
@@ -62,20 +64,19 @@ def enforcePositiveTraceContraints(graph):
     
 # Algorithm 3
 
-def sparseCrossing(a, b, graph):
+def sparseCrossing(a, b, graph, count):
     psiCount = 1
     A = graph.getConstrainedLower(a, graph.layers["atoms"]).difference(graph.getLower(b))
     U = set()
     for phi in A:
         U = set()
-        temp = graph.getLower(b)
-        B = temp.intersection(graph.layers["atoms"])
+        B = graph.getConstrainedLower(b, graph.layers["atoms"])
         Delta = graph.layers["dualAtoms"].difference(graph.getLower(phi.dual))
         flag = True
         while Delta or flag:
             epsilon = B.pop()
             DeltaP = Delta.intersection(graph.getLower(epsilon.dual))
-            if not Delta or any([x not in DeltaP for x in Delta]) or any([x not in Delta for x in DeltaP]):
+            if not Delta or (not Delta.issubset(DeltaP) or not DeltaP.issubset(Delta)):
                 psi = Node(name="psi" + str(psiCount))
                 dpsi = Node(name="[psi"+ str(psiCount)+"]")
                 graph.linkDuals(psi, dpsi)
@@ -88,24 +89,34 @@ def sparseCrossing(a, b, graph):
                 psiCount += 1
             
             flag = False
+
     ecount = 1
     for epsilon in U:
-        epsilonp = Node("espilon'"+str(ecount))
-        depsilonp = Node("[espilon'"+str(ecount)+"]")
+        epsilonp = Node("epsilon'"+str(ecount))
+        depsilonp = Node("[epsilon'"+str(ecount)+"]")
         graph.linkDuals(epsilonp, depsilonp)
         graph.fullLink(epsilonp, epsilon)
         graph.layers["atoms"].add(epsilonp)
         graph.layers["atoms*"].add(depsilonp)
         ecount += 1
 
-    for node in A.union(U):
-        graph.deleteNode(node, "atoms", "atoms*")
+    #for node in A.union(U):
+    #    deleteNode(atom, graph, "atoms", "atoms*")
+    Joe = set()
+    for atom in graph.layers["atoms"]:
+        if atom.children:
+            Joe.add(atom)
     
+    for atom in Joe:
+        graph.deleteNode(atom, "atoms", "atoms*")
+
     return graph
 
 def cross(graph):
+    count = 1
     for pos in graph.layers["pterms"]:
-        sparseCrossing(graph.layers["$"], pos, graph)
+        sparseCrossing(graph.layers["$"], pos, graph, count)
+        count += 1
     
     return
 
@@ -123,18 +134,37 @@ def reduceAtoms(graph):
                 Wc = Wc.intersection(graph.getConstrainedLower(phi, graph.layers["dualAtoms"]))
         
         Phic = set([x.dual for x in graph.getConstrainedLower(c, graph.layers["atoms"])])
-        T = graph.getTrace(c, graph)
+        T = graph.getTrace(c)
+        count = 0
         while (not T.issubset(Wc) or not Wc.issubset(T)) and Wc:
             eta = Wc.difference(T).pop()
-            temp = graph.getUpper(eta).union(set([graph.layers["Base"].dual]))
-            t2 = Phic.difference(temp)
-            phi = t2.pop().dual
-            #Phic.remove(phi.dual)
+            temp = Phic.difference(graph.getUpper(eta))
+            phi = list(temp)[count%len(temp)].dual
+            count += 1
             Q.add(phi)
             Wc = Wc.intersection(graph.getConstrainedLower(phi.dual, graph.layers["dualAtoms"]))
     
     for atom in graph.layers["atoms"].difference(Q.union([graph.layers["Base"]])):
-        graph.deleteNode(atom, graph, "atoms", "atoms*")
+        graph.deleteNode(atom, "atoms", "atoms*")
+
+# Observe Atoms
+
+def obeserveAtoms(graph):
+    importantAtoms = graph.layers["$"].children
+    importantAtoms.discard(graph.layers["Base"])
+    for atom in importantAtoms:
+        pset = atom.parents
+        print(" or ".join(map(lambda x: x.name, pset.difference(set([graph.layers["$"]])))))
+
+def verifyTraceConstraints(graph):
+    for neg in graph.layers["nterms"]:
+        if graph.traceConstraint(graph.layers["$"], neg):
+            return False
+    for pos in graph.layers["pterms"]:
+        if not graph.traceConstraint(graph.layers["$"], pos):
+            return False
+    return True
+
 
 def classify(dataList, labels, graph):
     consts = {}
