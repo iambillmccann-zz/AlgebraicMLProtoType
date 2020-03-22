@@ -125,4 +125,4 @@ dmypy.json
 .pyre/
 
 # Project specific files
-data/
+data/MNIST/

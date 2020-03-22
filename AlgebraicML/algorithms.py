@@ -10,6 +10,8 @@ def popFirst(inSet):
 # Algorithm 1
 
 def enforceNegativeTraceConstraints(graph):
+    """
+    """
     # Preprocessing Step
     count = 1
     for neg in graph.layers["nterms"]:
@@ -43,6 +45,8 @@ def enforceNegativeTraceConstraints(graph):
 # Algorithm 2 
 
 def enforcePositiveTraceContraints(graph):
+    """
+    """
     phiCount = 1
     for pos in sorted(list(graph.layers["pterms"]), key=lambda x: x.name, reverse=True):
         while not graph.traceConstraint(graph.layers["$"], pos):
@@ -68,6 +72,8 @@ def enforcePositiveTraceContraints(graph):
 # Algorithm 3
 
 def sparseCrossing(a, b, graph, count):
+    """
+    """
     psiCount = 1
     A = graph.getConstrainedLower(a, graph.layers["atoms"]).difference(graph.getLower(b))
     U = set()
@@ -128,6 +134,8 @@ def sparseCrossing(a, b, graph, count):
     return graph
 
 def cross(graph):
+    """
+    """
     count = 1
     for pos in sorted(list(graph.layers["pterms"]), key=lambda x: x.name, reverse=True):
         sparseCrossing(graph.layers["$"], pos, graph, count)
@@ -138,6 +146,8 @@ def cross(graph):
 # Algorithm 4
 
 def reduceAtoms(graph):
+    """
+    """
     Q = set()
     Lambda = graph.layers["constants"]
     while Lambda:
@@ -165,6 +175,8 @@ def reduceAtoms(graph):
 # Observe Atoms
 
 def obeserveAtoms(graph):
+    """
+    """
     importantAtoms = graph.layers["$"].children
     importantAtoms.discard(graph.layers["Base"])
     for atom in importantAtoms:
@@ -172,6 +184,8 @@ def obeserveAtoms(graph):
         print(" or ".join(map(lambda x: x.name, pset.difference(set([graph.layers["$"]])))))
 
 def verifyTraceConstraints(graph):
+    """
+    """
     for neg in graph.layers["nterms"]:
         if graph.traceConstraint(graph.layers["$"], neg):
             return False
@@ -193,4 +207,3 @@ def classify(dataList, labels, graph):
             atoms = atoms.union(consts[attr])
     
     return graph.layers["$"].children.issubset(atoms)
-
