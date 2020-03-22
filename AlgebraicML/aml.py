@@ -1,4 +1,4 @@
-
+import sys
 
 class Node(object):   
     def __init__(self, name=""):
@@ -153,20 +153,20 @@ def enforcePositiveTraceContraints(graph):
     
 # Algorithm 3
 
-def sparseCrossing(a, b, graph):
+def sparseCrossing(a, b, graph, count):
     psiCount = 1
     A = getConstrainedLower(a, graph["atoms"]).difference(getLower(b))
     U = set()
+
     for phi in A:
         U = set()
-        temp = getLower(b)
-        B = temp.intersection(graph["atoms"])
+        B = getConstrainedLower(b, graph["atoms"])
         Delta = graph["dualAtoms"].difference(getLower(phi.dual))
         flag = True
         while Delta or flag:
             epsilon = B.pop()
             DeltaP = Delta.intersection(getLower(epsilon.dual))
-            if not Delta or any([x not in DeltaP for x in Delta]) or any([x not in Delta for x in DeltaP]):
+            if not Delta or  (not Delta.issubset(DeltaP) or not DeltaP.issubset(Delta)):
                 psi = Node(name="psi" + str(psiCount))
                 dpsi = Node(name="[psi"+ str(psiCount)+"]")
                 linkDuals(psi, dpsi)
@@ -179,24 +179,35 @@ def sparseCrossing(a, b, graph):
                 psiCount += 1
             
             flag = False
+
     ecount = 1
     for epsilon in U:
-        epsilonp = Node("espilon'"+str(ecount))
-        depsilonp = Node("[espilon'"+str(ecount)+"]")
+        epsilonp = Node("epsilon'"+str(ecount))
+        depsilonp = Node("[epsilon'"+str(ecount)+"]")
         linkDuals(epsilonp, depsilonp)
         fullLink(epsilonp, epsilon)
         graph["atoms"].add(epsilonp)
         graph["atoms*"].add(depsilonp)
         ecount += 1
 
-    for node in A.union(U):
-        graph = deleteNode(node, graph, "atoms", "atoms*")
+    #for node in A.union(U):
+    #    deleteNode(atom, graph, "atoms", "atoms*")
+    Joe = set()
+    for atom in graph["atoms"]:
+        if atom.children:
+            Joe.add(atom)
     
+    for atom in Joe:
+        deleteNode(atom, graph, "atoms", "atoms*")
+
     return graph
 
 def cross(graph):
+    count = 1
     for pos in graph["pterms"]:
-        sparseCrossing(graph["$"], pos, graph)
+
+        sparseCrossing(graph["$"], pos, graph, count)
+        count += 1
     
     return
 
@@ -215,17 +226,35 @@ def reduceAtoms(graph):
         
         Phic = set([x.dual for x in getConstrainedLower(c, graph["atoms"])])
         T = getTrace(c, graph)
+        count = 0
         while (not T.issubset(Wc) or not Wc.issubset(T)) and Wc:
             eta = Wc.difference(T).pop()
-            temp = getUpper(eta).union(set([graph["Base"].dual]))
-            t2 = Phic.difference(temp)
-            phi = t2.pop().dual
-            #Phic.remove(phi.dual)
+            temp = Phic.difference(getUpper(eta))
+            phi = list(temp)[count%len(temp)].dual
+            count += 1
             Q.add(phi)
             Wc = Wc.intersection(getConstrainedLower(phi.dual, graph["dualAtoms"]))
     
     for atom in graph["atoms"].difference(Q.union([graph["Base"]])):
         deleteNode(atom, graph, "atoms", "atoms*")
+
+# Observe Atoms
+
+def obeserveAtoms(graph):
+    importantAtoms = graph["$"].children
+    importantAtoms.discard(graph["Base"])
+    for atom in importantAtoms:
+        pset = atom.parents
+        print(" or ".join(map(lambda x: x.name, pset.difference(set([graph["$"]])))))
+
+def verifyTraceConstraints(graph):
+    for neg in graph["nterms"]:
+        if traceConstraint(graph["$"], neg, graph):
+            return False
+    for pos in graph["pterms"]:
+        if not traceConstraint(graph["$"], pos, graph):
+            return False
+    return True
 
 def readData(file):
     with open(file, 'r') as data:
@@ -300,17 +329,27 @@ def createGraph(labels, records):
     layers["Base"] = zero
     return layers
 
-labels, records = readData("people.data")
+inputFile = "grids.data"#sys.argv[1]
+testFile = "gridTest.data"#sys.argv[2]
+
+labels, records = readData(inputFile)
 layers = createGraph(labels, records)
 enforceNegativeTraceConstraints(layers)
 enforcePositiveTraceContraints(layers)
+print(verifyTraceConstraints(layers))
 cross(layers)
-#reduceAtoms(layers)
-
-with open("test.data", 'r') as file:
+reduceAtoms(layers)
+correct = 0
+total = 0
+with open(testFile, 'r') as file:
     for line in file:
         data = list(map(lambda x: x.strip(), line.split(",")))
-        print(data[0], ":", classify(data, labels, layers))
+        classified = int(classify(data[:-1], labels, layers))
+        trueLabel = int(data[~0])
+        total += 1
+        correct += int(trueLabel == classified)
+        print(data[0], ":", classified, trueLabel == classified)
 
-#print(classify(["Steve","blue","brown"], labels, layers))          
+print("Error Margin:", correct / total) 
+obeserveAtoms(layers)   
     
