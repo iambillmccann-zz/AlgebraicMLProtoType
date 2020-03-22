@@ -329,8 +329,8 @@ def createGraph(labels, records):
     layers["Base"] = zero
     return layers
 
-inputFile = "grids.data"#sys.argv[1]
-testFile = "gridTest.data"#sys.argv[2]
+inputFile = "invert.data"#sys.argv[1]
+testFile = "invertTest.data"#sys.argv[2]
 
 labels, records = readData(inputFile)
 layers = createGraph(labels, records)
@@ -338,7 +338,7 @@ enforceNegativeTraceConstraints(layers)
 enforcePositiveTraceContraints(layers)
 print(verifyTraceConstraints(layers))
 cross(layers)
-reduceAtoms(layers)
+#reduceAtoms(layers)
 correct = 0
 total = 0
 with open(testFile, 'r') as file:

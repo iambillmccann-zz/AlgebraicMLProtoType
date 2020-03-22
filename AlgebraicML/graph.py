@@ -175,12 +175,15 @@ class Graph(object):
         Returns:
             Either the dual or none
         """
+
+        from AlgebraicML.algorithms import popFirst
+
         Omega = set(map(lambda c: c.dual, self.getConstrainedLower(a, self.layers["constants"])))
         U = self.getTrace(b)
         while U:
-            zeta = U.pop()
+            zeta, U = popFirst(U)
             T = Omega.difference(self.getUpper(zeta))
             if T:
-                c = T.pop()
+                c, T = popFirst(T)
                 return c.dual
         return None

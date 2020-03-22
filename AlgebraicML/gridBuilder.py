@@ -3,7 +3,7 @@ for i in range(16):
     out = str(i) + ","
     for char in bstr:
         out += char + ","
-    if (bstr[0] == "1" and bstr[2] == "1") or (bstr[1]=="1" and bstr[3]=="1"):
+    if int(bstr[0])*int(bstr[3]) - int(bstr[1])*int(bstr[2]):
         out += "1"
     else:
         out += "0"
