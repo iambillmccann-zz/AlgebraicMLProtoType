@@ -7,7 +7,7 @@ class Node(object):
         self.children = set()
         self.parents = set()
         self.name = name
-        self.dual = None
+        self.dual = set()
 
     def addChild(self, node):
         self.children.add(node)

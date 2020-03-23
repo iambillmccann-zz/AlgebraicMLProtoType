@@ -1,14 +1,8 @@
-from AlgebraicML.nodes import Node
-
 import pytest
 
 @pytest.mark.usefixtures('training_data')
-class TestClass:
-    """
-    def __init__(self):
-        self.test_this = 'Test This'
-    """
-    def test_the_test_frameword(self):
+class TestData:
+    def test_the_test_data_framework(self):
         assert True == True
 
     def test_number_of_labels(self):
