@@ -9,21 +9,21 @@ from AlgebraicML.graph import Graph
 _DEFAULT_TRAINING_DATA_ = "./data/grids.data"
 _DEFAULT_TEST_DATA_ = "./data/gridTest.data"
 
-if sys.argv.count == 2:
+if len(sys.argv) == 3:
     inputFile = sys.argv[1]
     testFile = sys.argv[2]
 else:
     inputFile = _DEFAULT_TRAINING_DATA_
     testFile = _DEFAULT_TEST_DATA_
-
+#print(sys.argv.count)
 labels, records = readData(inputFile)
 
 graph = Graph(labels, records)
 enforceNegativeTraceConstraints(graph)
 enforcePositiveTraceContraints(graph)
-print(verifyTraceConstraints(graph))
 cross(graph)
-# reduceAtoms(graph)
+
+reduceAtoms(graph)
 
 correct = 0
 total = 0
@@ -37,5 +37,5 @@ with open(testFile, 'r') as file:
         correct += int(trueLabel == classified)
         print(data[0], ":", classified, trueLabel == classified)
 
-print("Error Margin:", correct / total) 
+print("Percent Correct Classified:", correct / total) 
 obeserveAtoms(graph)          
