@@ -15,7 +15,7 @@ if len(sys.argv) == 3:
 else:
     inputFile = _DEFAULT_TRAINING_DATA_
     testFile = _DEFAULT_TEST_DATA_
-#print(sys.argv.count)
+
 labels, records = readData(inputFile)
 
 graph = Graph(labels, records)

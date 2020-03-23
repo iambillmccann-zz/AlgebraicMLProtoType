@@ -1,3 +1,5 @@
+from AlgebraicML.utilities import *
+
 import pytest
 """
 When pytest discovers a conftest.py, it modifies sys.path so it can import stuff from the conftest module. 
@@ -7,5 +9,7 @@ for all the training_data classes.
 @pytest.fixture(scope = 'class')
 def training_data(request):
 
-    request.cls.test_this = 'Test this!'
+    labels, records = readData('./data/people.data')
+    request.cls.labels = labels
+    request.cls.records = records
     yield
